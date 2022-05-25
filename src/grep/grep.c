@@ -2,15 +2,12 @@
 
 int main(int argc, char** argv) {
   data* store = init();
-  flags fl = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  flags fl = {0};
   store->fl = &fl;
   flagsParsing(argc, argv, store);
   templatesProcessing(store);
-  // printf("1\n");
   if (store->file->next) filesProcessing(store);
-  // printf("1\n");
   output(store);
-  // printf("1\n");
   destroyFiles(store->file);
   destroyTemplates(store->t);
   free(store);
@@ -41,6 +38,7 @@ void flagsParsing(int argc, char* argv[], data* store) {
       currFile = addFile(currFile, argv[i]);
   }
   if (store->file->next && store->file->next->next) store->fl->multi = 1;
+  if (store->fl->v) store->fl->o = 0;
 }
 
 int checkIfParsed(const char* argv, templates* templ) {
@@ -104,24 +102,22 @@ void templatesProcessing(data* store) {
           char* str = malloc(c);
           if (!str) exit(0);
           fgets(str, c, stream);
-          if (*str == '\n')
+          if (*str == '\n') {
             *str = '.';
-          else
+            store->fl->o = 0;
+          } else
             str[c - 2] = '\0';
-          // printf("%s\n", str);
           curr = addTemplate(curr, str, 0, 1);
         }
         fclose(stream);
       }
+    } else if (curr->templ && !strcmp(curr->templ, "^$")) {
+      curr->templ = "^\n$";
+    } else if (curr->templ && !strcmp(curr->templ, ".")) {
+      curr->templ = "[^\n]";
     }
   }
   if (store->t->next) store->t = removeTemplate(store->t, store->t);
-  // for (templates* curr = store->t; curr; curr = curr->next) {
-  //   if (!strcmp(curr->templ, ".") && curr->next) {
-  //     destroyTemplates(curr->next);
-  //     curr->next = NULL;
-  //   }
-  // }
 }
 
 int newLineSearcher(FILE* stream) {
@@ -179,76 +175,78 @@ void printAtEOF(flags* fl, files* curr, int c) {
 
 int regexPrint(data* store, files* file, char* line, int n) {
   int res = 0;
-  int add = 0;
-  char* matched = malloc(1);
-  if (!matched) exit(0);
-  *matched = '\n';
   int stop = 0;
-  for (templates* curr = store->t; curr && !stop; curr = curr->next) {
-    regmatch_t* buff = malloc(sizeof(regmatch_t));
-    if (!buff) exit(0);
+  for (templates* curr = store->t; curr && !res && !stop; curr = curr->next) {
+    regmatch_t buff = {0};
     regex_t exp;
-    // int fl = REG_EXTENDED | REG_NEWLINE;
     int fl = 0;
     if (store->fl->i) fl = fl | REG_ICASE;
     if (!store->fl->o) fl = fl | REG_NOSUB;
     if (!regcomp(&exp, curr->templ, fl)) {
-      int err = regexec(&exp, line, 1, buff, 0);
+      int err = regexec(&exp, line, 1, &buff, 0);
       if (!err && !store->fl->v) {
         res = 1;
-        if (!store->fl->c && !store->fl->l) {
-          if (store->fl->multi && !store->fl->h && !add)
-            printf("%s:", file->name);
-          if (store->fl->n && !add) printf("%d:", n);
-          if (!store->fl->o) {
-            stop++;
-            fputs(line, stdout);
-            if (line[strlen(line) - 1] != '\n') fputc('\n', stdout);
-          } else {
-            int widthMatched = 0;
-            for (; *curr->templ != '.' && add && !err;
-                 err = regexec(&exp, matched + widthMatched, 1, buff,
-                               REG_NOTBOL)) {
-              // matched += buff->rm_so;
-              int width = buff->rm_eo - buff->rm_so;
-              printf("%.*s\n", width, matched + buff->rm_so + widthMatched);
-              widthMatched += buff->rm_eo;
-            }
-            add = 1;
-            for (; !err; err = regexec(&exp, line, 1, buff, 0)) {
-              line += buff->rm_so;
-              int width = buff->rm_eo - buff->rm_so;
-              matched = realloc(matched, strlen(matched) + width + 2);
-              if (!matched) exit(0);
-              strncat(matched, line, width);
-              strcat(matched, "\n");
-              printf("%.*s\n", width, line);
-              line += width;
-            }
-          }
-        }
-      } else if ((store->fl->v && !err)) {
+        vanillaPrint(store, file, line, n, curr);
+      } else if (store->fl->v && !err) {
         stop++;
       }
     } else {
-      // errPrint(3);
+      errPrint(3);
     }
     regfree(&exp);
-    if (buff) free(buff);
   }
-  free(matched);
   if (store->fl->v && !stop && *line) {
     res = 1;
-    if (!store->fl->c && !store->fl->l) {
-      if (store->fl->multi && !store->fl->h && !add) printf("%s:", file->name);
-      if (store->fl->n && !add) printf("%d:", n);
-      stop++;
-      fputs(line, stdout);
-      // printf("%s\t%c\n", line, *line);
-      if (line[strlen(line) - 1] != '\n') fputc('\n', stdout);
-    }
+    vanillaPrint(store, file, line, n, NULL);
   }
   return res;
+}
+
+void flagOPrint(data* store, char* line, templates* curr, int prev, int head,
+                int flag) {
+  regex_t exp;
+  regmatch_t buff = {0};
+  int fl = 0;
+  if (store->fl->i) fl = fl | REG_ICASE;
+  int subflag = REG_NOTBOL;
+  if (!regcomp(&exp, curr->templ, fl)) {
+    for (int err = regexec(&exp, line, 1, &buff, flag); !err;
+         err = regexec(&exp, line, 1, &buff, flag)) {
+      int width = buff.rm_eo - buff.rm_so;
+      if (buff.rm_eo > prev) break;
+      prev -= buff.rm_eo;
+      line += buff.rm_so;
+      if (*line != '\n')
+        printf("%.*s\n", width, line);
+      else {
+        subflag = 0;
+        printf("\n");
+      }
+      if (curr->next) flagOPrint(store, line, curr->next, width, 0, subflag);
+      line += width;
+      // if (!head) break;
+    }
+    if (head && curr->next)
+      flagOPrint(store, line, curr->next, INT16_MAX, 1, subflag);
+    else if (curr->next)
+      flagOPrint(store, line, curr->next, prev, 0, subflag);
+    regfree(&exp);
+  } else
+    errPrint(3);
+}
+
+void vanillaPrint(data* store, files* file, char* line, int n,
+                  templates* curr) {
+  if (!store->fl->c && !store->fl->l) {
+    if (store->fl->multi && !store->fl->h) printf("%s:", file->name);
+    if (store->fl->n) printf("%d:", n);
+    if (!store->fl->o || store->fl->v) {
+      fputs(line, stdout);
+      if (line[strlen(line) - 1] != '\n') fputc('\n', stdout);
+    } else if (store->fl->o) {
+      flagOPrint(store, line, curr, INT16_MAX, 1, 0);
+    }
+  }
 }
 
 data* init() {
