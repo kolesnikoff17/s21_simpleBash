@@ -24,6 +24,7 @@ typedef struct {
   int o;
   int multi;
   int err;
+  int count;
 } flags;
 
 typedef struct {
@@ -41,6 +42,10 @@ void filesProcessing(data* store);
 void output(data* store);
 void printAtEOF(flags* fl, files* curr, int c);
 int regexPrint(data* store, files* file, char* line, int n);
+void flagOPrint(data* store, char* line, templates* curr, int prev, int head,
+                int flag);
+void vanillaPrint(data* store, files* file, char* line, int n, templates* curr);
+// int checkForDot(data* store);
 data* init();
 templates* addTemplate(templates* elem, char* name, int file, int from);
 templates* removeTemplate(templates* elem, templates* root);

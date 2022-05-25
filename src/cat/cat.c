@@ -110,8 +110,9 @@ void output(files* file, flags fl) {
           if (fl.T) catFlagT(c);
           if (fl.t || fl.e || fl.v) {
             catFlagV(c, fl);
-          } else
-            fputc(c, stdout);
+          } else {
+            if (!(fl.T && c == '\t')) fputc(c, stdout);
+          }
         }
         // if (fl.s && !noPrint) c = '\n';
         cs.pr = c;
