@@ -4,7 +4,10 @@ int main(int argc, char* argv[]) {
   files* fileList = init();
   flags fl = {0};
   flagsParsing(argc, argv, &fl, fileList);
-  filesProcessing(&fileList, &fl);
+  if (fileList->next)
+    filesProcessing(&fileList, &fl);
+  else
+    fl.err = 2;
   output(fileList, fl);
   destroyFiles(fileList);
   return 0;
@@ -89,7 +92,7 @@ void filesProcessing(files** fileList, flags* fl) {
 }
 
 void output(files* file, flags fl) {
-  if (fl.err == 4) {
+  if (fl.err == 4 || fl.err == 2) {
     errPrint(fl.err);
   } else {
     if (fl.err) errPrint(fl.err);
@@ -232,6 +235,8 @@ void destroyFiles(files* root) {
 void errPrint(int err) {
   if (err == 1) {
     printf("Cannot open some files.\n");
+  } else if (err == 2) {
+    printf("No file to open.\n");
   } else if (err == 4) {
     printf("Illegal option.\n");
   }
