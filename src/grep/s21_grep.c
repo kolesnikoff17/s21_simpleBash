@@ -314,12 +314,9 @@ templates* removeTemplate(templates* elem, templates* root) {
 }
 
 void destroyTemplates(templates* root) {
-  templates* tmp;
-  tmp = root;
-  while (tmp->next != NULL) {
-    tmp = removeTemplate(tmp->next, root);
+  while (root != NULL) {
+    root = removeTemplate(root, root);
   }
-  free(root);
 }
 
 files* addFile(files* elem, char* name) {
@@ -362,12 +359,9 @@ files* removeFile(files* elem, files* root) {
 }
 
 void destroyFiles(files* root) {
-  files* tmp;
-  tmp = root;
-  while (tmp->next != NULL) {
-    tmp = removeFile(tmp->next, root);
+  while (root != NULL) {
+    root = removeFile(root, root);
   }
-  free(root);
 }
 
 void errPrint(int err) {
