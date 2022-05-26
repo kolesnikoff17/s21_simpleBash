@@ -224,12 +224,9 @@ files* removeFile(files* elem, files* root) {
 }
 
 void destroyFiles(files* root) {
-  files* tmp;
-  tmp = root;
-  while (tmp->next != NULL) {
-    tmp = removeFile(tmp->next, root);
+  while (root != NULL) {
+    root = removeFile(root, root);
   }
-  free(root);
 }
 
 void errPrint(int err) {
