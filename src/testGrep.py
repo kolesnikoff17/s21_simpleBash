@@ -1,8 +1,5 @@
 from os import system
-from subprocess import call
 import random
-import sys
-import contextlib
 import os
 
 orig_path = 'grep'
@@ -67,8 +64,8 @@ for i in range(10000):
     orig = orig_path + ' ' + add
     custom = my_path + ' ' + add
     print(add)
-    a, b, diff =  open('grep/0grepres', 'w'), open('grep/0s21_grepres', 'w'), open('grep/0diff', 'w')
-    os.system(orig + ' > grep/0grepres')
+    # a, b, diff =  open('grep/0grepres', 'w'), open('grep/0s21_grepres', 'w'), open('grep/0diff', 'w')
+    os.system(f'{orig_path} {add} > grep/0grepres')
     os.system(custom + ' > grep/0s21_grepres')
     os.system('diff grep/0grepres grep/0s21_grepres > grep/0diff')
     stat = os.stat('grep/0diff')
@@ -78,7 +75,7 @@ for i in range(10000):
         print('FAIL\n')
         count_fails += 1
         input()
-    a.close()
-    b.close()
-    diff.close()
+    # a.close()
+    # b.close()
+    # diff.close()
 

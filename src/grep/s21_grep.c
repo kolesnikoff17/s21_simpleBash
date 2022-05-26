@@ -27,6 +27,8 @@ void flagsParsing(int argc, char* argv[], data* store) {
           curr = addTemplate(curr, argv[++i], 0, 0);
           break;
       }
+    } else {
+      break;
     }
   }
   for (int i = 1; i < argc; i++) {
@@ -94,9 +96,9 @@ void templatesProcessing(data* store) {
     if (curr->isFile) {
       FILE* stream = fopen(curr->templ, "r");
       curr = removeTemplate(curr, store->t);
-      if (!stream)
+      if (!stream) {
         store->fl->err = 2;
-      else {
+      } else {
         while (!feof(stream)) {
           int c = newLineSearcher(stream) + 2;
           char* str = malloc(c);
@@ -105,8 +107,9 @@ void templatesProcessing(data* store) {
           if (*str == '\n') {
             *str = '.';
             store->fl->o = 0;
-          } else
+          } else {
             str[c - 2] = '\0';
+          }
           curr = addTemplate(curr, str, 0, 1);
         }
         fclose(stream);
@@ -136,16 +139,17 @@ void filesProcessing(data* store) {
     if (!stream) {
       store->fl->err = 1;
       curr = removeFile(curr, store->file);
-    } else
+    } else {
       curr->stream = stream;
+    }
   }
   if (store->file->next) store->file = removeFile(store->file, store->file);
 }
 
 void output(data* store) {
-  if (store->fl->err == 4)
+  if (store->fl->err == 4) {
     errPrint(store->fl->err);
-  else {
+  } else {
     if (store->fl->err && !store->fl->s) errPrint(store->fl->err);
     for (files* curr = store->file; curr && curr->stream; curr = curr->next) {
       int n = 1;
@@ -156,8 +160,7 @@ void output(data* store) {
         char* line = malloc(s);
         if (!line) exit(0);
         fgets(line, s, curr->stream);
-        count += regexPrint(store, curr, line, n);
-        n++;
+        count += regexPrint(store, curr, line, n++);
         free(line);
       }
       printAtEOF(store->fl, curr, count);
@@ -191,13 +194,13 @@ int regexPrint(data* store, files* file, char* line, int n) {
         stop++;
       }
     } else {
-      errPrint(3);
+      // errPrint(3);
     }
     regfree(&exp);
   }
   if (store->fl->v && !stop && *line) {
     res = 1;
-    vanillaPrint(store, file, line, n, NULL);
+    vanillaPrint(store, file, line, n, store->t);
   }
   return res;
 }
@@ -210,29 +213,32 @@ void flagOPrint(data* store, char* line, templates* curr, int prev, int head,
   if (store->fl->i) fl = fl | REG_ICASE;
   int subflag = REG_NOTBOL;
   if (!regcomp(&exp, curr->templ, fl)) {
-    for (int err = regexec(&exp, line, 1, &buff, flag); !err;
-         err = regexec(&exp, line, 1, &buff, flag)) {
-      int width = buff.rm_eo - buff.rm_so;
+    int width = 0;
+    int flagSub = 0;
+    for (int err = regexec(&exp, line, 1, &buff, flag); !err; flagSub = 0) {
+      width = buff.rm_eo - buff.rm_so;
       if (buff.rm_eo > prev) break;
       prev -= buff.rm_eo;
       line += buff.rm_so;
-      if (*line != '\n')
+      if (*line != '\n') {
         printf("%.*s\n", width, line);
-      else {
+      } else if (strlen(line) == 1) {
         subflag = 0;
         printf("\n");
       }
-      if (curr->next) flagOPrint(store, line, curr->next, width, 0, subflag);
+      err = regexec(&exp, line + width, 1, &buff, flag);
+      if (curr->next && !err) {
+        flagOPrint(store, line, curr->next, width, 0, subflag);
+        flagSub = 1;
+      }
       line += width;
-      // if (!head) break;
+      if (!head) break;
     }
-    if (head && curr->next)
-      flagOPrint(store, line, curr->next, INT16_MAX, 1, subflag);
-    else if (curr->next)
-      flagOPrint(store, line, curr->next, prev, 0, subflag);
+    if (head && curr->next && !flagSub)
+      flagOPrint(store, line - width, curr->next, MAX, 1, subflag);
     regfree(&exp);
-  } else
-    errPrint(3);
+  }
+  // errPrint(3);
 }
 
 void vanillaPrint(data* store, files* file, char* line, int n,
@@ -244,7 +250,7 @@ void vanillaPrint(data* store, files* file, char* line, int n,
       fputs(line, stdout);
       if (line[strlen(line) - 1] != '\n') fputc('\n', stdout);
     } else if (store->fl->o) {
-      flagOPrint(store, line, curr, INT16_MAX, 1, 0);
+      flagOPrint(store, line, curr, MAX, 1, 0);
     }
   }
 }
@@ -314,4 +320,64 @@ void destroyTemplates(templates* root) {
     tmp = removeTemplate(tmp->next, root);
   }
   free(root);
+}
+
+files* addFile(files* elem, char* name) {
+  files *tmp, *p;
+  tmp = (files*)malloc(sizeof(files));
+  if (!tmp) exit(0);
+  p = elem->next;
+  elem->next = tmp;
+  tmp->name = name;
+  tmp->stream = NULL;
+  tmp->next = p;
+  return tmp;
+}
+
+files* removeFile(files* elem, files* root) {
+  files* tmp;
+  tmp = root;
+  if (tmp == elem) {
+    tmp = tmp->next;
+    if (root->stream) fclose(root->stream);
+    free(root);
+  } else {
+    int err = 0;
+    while (tmp->next != elem) {
+      tmp = tmp->next;
+      if (tmp == NULL) {
+        err = 1;
+        break;
+      }
+    }
+    if (!err) {
+      tmp->next = elem->next;
+      if (elem->stream) fclose(elem->stream);
+      free(elem);
+    } else {
+      tmp = NULL;
+    }
+  }
+  return tmp;
+}
+
+void destroyFiles(files* root) {
+  files* tmp;
+  tmp = root;
+  while (tmp->next != NULL) {
+    tmp = removeFile(tmp->next, root);
+  }
+  free(root);
+}
+
+void errPrint(int err) {
+  if (err == 1) {
+    printf("Cannot open some files.\n");
+  } else if (err == 2) {
+    printf("Cannot open a regex file.\n");
+  } else if (err == 3) {
+    printf("Cannot compile regular expression.\n");
+  } else if (err == 4) {
+    printf("Illegal option.\n");
+  }
 }

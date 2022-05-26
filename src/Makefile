@@ -2,19 +2,19 @@ CC=gcc
 CFLAGS=-Wall -Wextra -Werror -std=c11
 LDFLAGS:=
 
-SOURCES:=cat/cat.c common/common.c grep/grep.c
+SOURCES:=cat/s21_cat.c grep/s21_grep.c
 
 OBJECTS = $(SOURCES:.c=.o)
 
-.PHONY: all clean rebuild lint cat grep
+.PHONY: all clean rebuild lint s21_cat s21_grep
 
-all: cat grep
+all: s21_cat s21_grep
 
-cat: common/common.o cat/cat.o
-	$(CC) $(LDFLAGS) $^ -o $@/s21_$@
+s21_cat: cat/s21_cat.o
+	$(CC) $(LDFLAGS) $^ -o cat/$@
 
-grep: common/common.o grep/grep.o
-	$(CC) $(LDFLAGS) $^ -o $@/s21_$@
+s21_grep: grep/s21_grep.o
+	$(CC) $(LDFLAGS) $^ -o grep/$@
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -25,8 +25,9 @@ clean:
 	rm -rf */*.o
 	rm -f cat/s21_cat
 	rm -f grep/s21_grep
+	rm -f */0*
 
 lint:
 	cp ../materials/linters/CPPLINT.cfg ./
-	python3 ../materials/linters/cpplint.py --extensions=c *.h *.c
+	python3 ../materials/linters/cpplint.py --extensions=c */*.h */*.c
 	rm -f CPPLINT.cfg

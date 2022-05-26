@@ -80,17 +80,18 @@ void filesProcessing(files** fileList, flags* fl) {
     if (!stream) {
       fl->err = 1;
       curr = removeFile(curr, file);
-    } else
+    } else {
       curr->stream = stream;
+    }
   }
   if (file->next) file = removeFile(file, file);
   *fileList = file;
 }
 
 void output(files* file, flags fl) {
-  if (fl.err == 4)
+  if (fl.err == 4) {
     errPrint(fl.err);
-  else {
+  } else {
     if (fl.err) errPrint(fl.err);
     for (files* curr = file; curr; curr = curr->next) {
       catSup cs = {'\n', '\0', 1};
@@ -114,7 +115,6 @@ void output(files* file, flags fl) {
             if (!(fl.T && c == '\t')) fputc(c, stdout);
           }
         }
-        // if (fl.s && !noPrint) c = '\n';
         cs.pr = c;
       }
     }
@@ -124,7 +124,6 @@ void output(files* file, flags fl) {
 int catFlagB(unsigned char c, catSup cs, flags fl) {
   if ((cs.pr == '\n' || (cs.pr == 138 && (fl.t || fl.e || fl.v))) &&
       c != '\n') {
-    // if (cs.pr == '\n' && c != '\n') {
     printf("%6d\t", cs.num);
     cs.num++;
   }
@@ -139,7 +138,6 @@ void catFlagE(unsigned char c) {
 
 int catFlagN(catSup cs, flags fl) {
   if (cs.pr == '\n' || (cs.pr == 138 && (fl.t || fl.e || fl.v))) {
-    // if (cs.pr == '\n') {
     printf("%6d\t", cs.num);
     cs.num++;
   }
@@ -163,20 +161,78 @@ void catFlagV(unsigned char c, flags fl) {
     if (c == '\n') {
       if (fl.e) printf("$");
       printf("\n");
-    } else if (c == '\t' && !fl.t)
+    } else if (c == '\t' && !fl.t) {
       printf("\t");
-    else
+    } else {
       printf("^%c", ((int)c + 64));
-  } else if (c == 127)
+    }
+  } else if (c == 127) {
     printf("^?");
-  // } else if (c >= 32 && c < 127) {
-  //   printf("%c", c);
-  else if ((c >= 128) && (c < (128 + 32)))
+    // } else if (c >= 32 && c < 127) {
+    //   printf("%c", c);
+  } else if ((c >= 128) && (c < (128 + 32))) {
     printf("M-^%c", ((int)c - 64));
-  else
+  } else {
     printf("%c", c);
+  }
   // } else if (c >= (128 + 32)) {
   //   printf("M-%c", ((int)c - 128));
   // } else {
   //   printf("M-?");
+}
+
+files* addFile(files* elem, char* name) {
+  files *tmp, *p;
+  tmp = (files*)malloc(sizeof(files));
+  if (!tmp) exit(0);
+  p = elem->next;
+  elem->next = tmp;
+  tmp->name = name;
+  tmp->stream = NULL;
+  tmp->next = p;
+  return tmp;
+}
+
+files* removeFile(files* elem, files* root) {
+  files* tmp;
+  tmp = root;
+  if (tmp == elem) {
+    tmp = tmp->next;
+    if (root->stream) fclose(root->stream);
+    free(root);
+  } else {
+    int err = 0;
+    while (tmp->next != elem) {
+      tmp = tmp->next;
+      if (tmp == NULL) {
+        err = 1;
+        break;
+      }
+    }
+    if (!err) {
+      tmp->next = elem->next;
+      if (elem->stream) fclose(elem->stream);
+      free(elem);
+    } else {
+      tmp = NULL;
+    }
+  }
+  return tmp;
+}
+
+void destroyFiles(files* root) {
+  files* tmp;
+  tmp = root;
+  while (tmp->next != NULL) {
+    tmp = removeFile(tmp->next, root);
+  }
+  free(root);
+}
+
+void errPrint(int err) {
+  if (err == 1) {
+    printf("Cannot open some files.\n");
+  } else if (err == 4) {
+    printf("Illegal option.\n");
+  }
 }

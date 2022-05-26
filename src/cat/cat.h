@@ -1,7 +1,9 @@
 #ifndef SRC_CAT_CAT_H_
 #define SRC_CAT_CAT_H_
 
-#include "../common/common.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef struct catSup {
   unsigned char pr;
@@ -20,6 +22,17 @@ typedef struct flags {
   int t;
   int err;
 } flags;
+
+typedef struct files {
+  char* name;
+  FILE* stream;
+  struct files* next;
+} files;
+
+files* addFile(files* elem, char* name);
+files* removeFile(files* elem, files* root);
+void destroyFiles(files* root);
+void errPrint(int err);
 
 files* init();
 void flagsParsing(int argc, char* argv[], flags* flags, files* file);
