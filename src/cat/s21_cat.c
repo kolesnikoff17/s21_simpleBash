@@ -101,7 +101,7 @@ void output(files* file, flags fl) {
       unsigned char c;
       int noPrint = 0;
       for (fread(&c, 1, 1, curr->stream); !feof(curr->stream);
-           fread(&c, 1, 1, curr->stream)) {
+           fread(&c, 1, 1, curr->stream), cs.next = 0) {
         fread(&cs.next, 1, 1, curr->stream);
         if (!feof(curr->stream)) fseek(curr->stream, -1, 1);
         if (fl.s) noPrint = catFlagS(c, &cs);
